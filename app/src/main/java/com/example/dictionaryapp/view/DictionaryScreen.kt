@@ -1,8 +1,5 @@
 package com.example.dictionaryapp.view
 
-import android.content.Context
-import android.media.AudioAttributes
-import android.media.MediaPlayer
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
@@ -13,6 +10,8 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
@@ -34,6 +33,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -53,13 +53,19 @@ import com.example.dictionaryapp.viewmodel.DictionaryViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun DictionaryScreen (viewModel: DictionaryViewModel){
+fun DictionaryScreen(viewModel: DictionaryViewModel) {
     var searchWord by remember { mutableStateOf("") }
     val wordResult = viewModel.wordData
-    var isFavorite by remember { mutableStateOf(false) }
     val favoriteList by viewModel.favoriteWords.collectAsState()
+    var isFavorite by remember { mutableStateOf(false) }
 
-    Scaffold (
+    LaunchedEffect(wordResult) {
+        wordResult?.let {
+            isFavorite = viewModel.checkIsFavorite(it.word)
+        }
+    }
+
+    Scaffold(
         topBar = {
             TopAppBar(
                 title = {
@@ -71,73 +77,62 @@ fun DictionaryScreen (viewModel: DictionaryViewModel){
                         fontSize = 22.sp
                     )
                 },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = Color.Red
-                )
+                colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.Red)
             )
         }
     ) { paddingValues ->
-        Column (
-            modifier = Modifier.fillMaxSize()
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
                 .padding(paddingValues)
-        ){
-            Column (
-                modifier = Modifier.fillMaxWidth()
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
                     .background(Color.Red)
                     .padding(16.dp)
-            ){
+            ) {
                 OutlinedTextField(
                     value = searchWord,
-                    onValueChange = {searchWord = it},
-                    placeholder = {
-                        Text(
-                            text = "Search for a word...",
-                            color = Color.DarkGray
-                        )
-                    },
+                    onValueChange = { searchWord = it },
+                    placeholder = { Text(text = "Search for a word...", color = Color.DarkGray) },
                     shape = RoundedCornerShape(26.dp),
                     modifier = Modifier.fillMaxWidth(),
                     colors = OutlinedTextFieldDefaults.colors(
-                        focusedBorderColor = Color.Transparent,
-                        unfocusedBorderColor = Color.Transparent,
                         focusedContainerColor = Color.White,
-                        unfocusedContainerColor =  Color.White,
-                        focusedTextColor = Color.Black,
-                        unfocusedTextColor = Color.Black,
+                        unfocusedContainerColor = Color.White,
+                        focusedBorderColor = Color.Transparent,
+                        unfocusedBorderColor = Color.Transparent
                     ),
                     trailingIcon = {
-                        IconButton(onClick = {
-                            viewModel.searchWord(searchWord)
-                        }) {
+                        IconButton(onClick = { viewModel.searchWord(searchWord) }) {
                             Icon(Icons.Default.Search, contentDescription = "Search", tint = Color.Red)
                         }
                     }
                 )
             }
-            Column (
-                modifier = Modifier.fillMaxSize()
+
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
                     .background(Color(0xFFF5F5F5))
                     .padding(16.dp)
-                    .verticalScroll(rememberScrollState())
-            ){
-                wordResult?.let { wordData ->
-                    val wordMeaning = wordData.meanings.first()
+            ) {
+                if (wordResult != null) {
+                    Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
+                        val wordData = wordResult
+                        val wordMeaning = wordData.meanings.first()
 
-                    MeaningRoundedCard {
-                        Row (
-                            verticalAlignment = Alignment.CenterVertically
-                        ){
-                            Text(
-                                text = wordData.word,
-                                fontSize = 24.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = Color.Red
-                            )
-
-                            Spacer(modifier = Modifier.weight(1f))
-
-                            IconButton(
-                                onClick = {
+                        MeaningRoundedCard {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Text(
+                                    text = wordData.word,
+                                    fontSize = 24.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = Color.Red
+                                )
+                                Spacer(modifier = Modifier.weight(1f))
+                                IconButton(onClick = {
                                     viewModel.onFavoriteButtonClicked(
                                         WordEntity(
                                             word = wordData.word,
@@ -145,73 +140,42 @@ fun DictionaryScreen (viewModel: DictionaryViewModel){
                                         ),
                                         currentlyFavorite = isFavorite
                                     )
-
                                     isFavorite = !isFavorite
+                                }) {
+                                    Icon(
+                                        imageVector = if (isFavorite) Icons.Default.Star else Icons.Default.StarOutline,
+                                        contentDescription = "favorite",
+                                        tint = if (isFavorite) Color(0xFFFFD700) else Color.Black
+                                    )
                                 }
-                            ) {
-                                Icon(
-                                    imageVector = if (isFavorite) Icons.Default.Star else Icons.Default.StarOutline,
-                                    contentDescription = "favorite",
-                                    tint = if (isFavorite) Color(0xFFFFD700) else Color.Black,
-                                    modifier = Modifier.width(24.dp)
-                                )
                             }
-                        }
 
-                        Spacer(modifier = Modifier.height(6.dp))
+                            Spacer(modifier = Modifier.height(6.dp))
 
-                        Row (
-                            verticalAlignment = Alignment.CenterVertically
-                        ){
-                            val context = LocalContext.current
-                            IconButton(
-                                onClick = {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                val context = LocalContext.current
+                                IconButton(onClick = {
                                     val validAudio = wordData.phonetics.find { !it.audio.isNullOrBlank() }?.audio
-
                                     if (validAudio != null) {
                                         playDictionaryAudio(context = context, audioUrl = validAudio)
                                     } else {
-                                        android.widget.Toast.makeText(context, "No audio available", android.widget.Toast.LENGTH_SHORT).show()
+                                        android.widget.Toast.makeText(context, "No audio", android.widget.Toast.LENGTH_SHORT).show()
                                     }
+                                }) {
+                                    Icon(Icons.Default.VolumeUp, contentDescription = "Audio", tint = Color.Red)
                                 }
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Default.VolumeUp,
-                                    contentDescription = "Audio",
-                                    tint = Color.Red,
-                                    modifier = Modifier.width(24.dp)
-                                )
+                                Text(text = wordData.phonetics.firstOrNull()?.text ?: "", fontWeight = FontWeight.Bold)
+                                Spacer(modifier = Modifier.width(12.dp))
+                                Text(text = wordMeaning.partOfSpeech, fontStyle = FontStyle.Italic)
                             }
-                            Text(
-                                text = wordData.phonetics.first().text ?: "",
-                                fontWeight = FontWeight.Bold,
-                                color = Color.Black,
-                                fontSize = 14.sp
-                            )
-                            Spacer(modifier = Modifier.width(12.dp))
-                            Text(
-                                text = wordMeaning.partOfSpeech,
-                                fontWeight = FontWeight.Bold,
-                                color = Color.Black,
-                                fontSize = 14.sp
-                            )
+
+                            Spacer(modifier = Modifier.height(12.dp))
+                            Text(text = wordMeaning.definitions.first().definition, fontSize = 16.sp)
                         }
 
-                        Spacer(modifier = Modifier.height(12.dp))
-
-                        Text(
-                            text = wordMeaning.definitions.first().definition,
-                            color = Color.Black,
-                            fontSize = 16.sp
-                        )
-                        }
-                    Spacer(modifier = Modifier.height(12.dp))
-                    // varsa göstersin
-                    val synonymsAvailable = !wordMeaning.synonyms.isNullOrEmpty()
-                    val antonymsAvailable = !wordMeaning.antonyms.isNullOrEmpty()
-
-                    if(synonymsAvailable || antonymsAvailable){
-                        if(synonymsAvailable){
+                        val synonyms = wordMeaning.synonyms
+                        if (!synonyms.isNullOrEmpty()) {
+                            Spacer(modifier = Modifier.height(12.dp))
                             RoundedCard {
                                 Text(
                                     text = "Synonyms",
@@ -219,89 +183,100 @@ fun DictionaryScreen (viewModel: DictionaryViewModel){
                                     color = Color.Black,
                                     fontSize = 16.sp
                                 )
+                                Spacer(modifier = Modifier.height(4.dp))
                                 Text(
-                                    text = wordMeaning.synonyms.joinToString(),
-                                    color = Color.Black,
+                                    text = synonyms.joinToString(", "),
+                                    color = Color.DarkGray,
+                                    fontSize = 14.sp
                                 )
                             }
+                        }
 
+                        val antonyms = wordMeaning.antonyms
+                        if (!antonyms.isNullOrEmpty()) {
                             Spacer(modifier = Modifier.height(12.dp))
-
-                            if(antonymsAvailable){
-                                RoundedCard {
-                                    Text(
-                                        text = "Antonyms",
-                                        fontWeight = FontWeight.Bold,
-                                        color = Color.Black,
-                                        fontSize = 16.sp
-                                    )
-                                    Text(
-                                        text = wordMeaning.antonyms.joinToString(),
-                                        color = Color.Black,
-                                    )
-                                }
-
+                            RoundedCard {
+                                Text(
+                                    text = "Antonyms",
+                                    fontWeight = FontWeight.Bold,
+                                    color = Color.Black,
+                                    fontSize = 16.sp
+                                )
+                                Spacer(modifier = Modifier.height(4.dp))
+                                Text(
+                                    text = antonyms.joinToString(", "),
+                                    color = Color.DarkGray,
+                                    fontSize = 14.sp
+                                )
                             }
                         }
-                        Spacer(modifier = Modifier.height(12.dp))
-                    }
-                    Spacer(modifier = Modifier.height(12.dp))
 
-                    val wordExample = wordMeaning.definitions.firstOrNull()?.example
-
-                    if(!wordExample.isNullOrEmpty()){
-                        RoundedCard {
-                            Text(
-                                text = "Example",
-                                fontWeight = FontWeight.Bold,
-                                color = Color.Black,
-                                fontSize = 16.sp
-                            )
-                            Spacer(modifier = Modifier.height(6.dp))
-                            Text(
-                                text = "\"$wordExample\"",
-                                fontStyle = FontStyle.Italic,
-                                color = Color.Black,
-                                fontSize = 16.sp
-                            )
+                        val wordExample = wordMeaning.definitions.firstOrNull()?.example
+                        if (!wordExample.isNullOrEmpty()) {
+                            Spacer(modifier = Modifier.height(12.dp))
+                            RoundedCard {
+                                Text(
+                                    text = "Example",
+                                    fontWeight = FontWeight.Bold,
+                                    color = Color.Black,
+                                    fontSize = 16.sp
+                                )
+                                Spacer(modifier = Modifier.height(6.dp))
+                                Text(
+                                    text = "\"$wordExample\"",
+                                    fontStyle = FontStyle.Italic,
+                                    color = Color.DarkGray,
+                                    fontSize = 15.sp
+                                )
+                            }
                         }
-                        Spacer(modifier = Modifier.height(12.dp))
+
+                        Spacer(modifier = Modifier.height(24.dp))
+                    }
+                } else {
+                    Text(
+                        text = "Your Favorites",
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 18.sp,
+                        modifier = Modifier.padding(bottom = 8.dp)
+                    )
+
+                    LazyColumn(modifier = Modifier.fillMaxSize()) {
+                        items(favoriteList) { fav ->
+                            RoundedCard {
+                                Text(text = fav.word, fontWeight = FontWeight.Bold, color = Color.Red, fontSize = 20.sp)
+                                Spacer(modifier = Modifier.height(4.dp))
+                                Text(text = fav.meaning, fontSize = 14.sp, maxLines = 2)
+                            }
+                            Spacer(modifier = Modifier.height(8.dp))
+                        }
                     }
                 }
-                else{
-
-            }
             }
         }
     }
 }
 
 @Composable
-fun RoundedCard(content: @Composable ColumnScope.() -> Unit){
+fun RoundedCard(content: @Composable ColumnScope.() -> Unit) {
     Card(
         shape = RoundedCornerShape(16.dp),
         elevation = CardDefaults.cardElevation(6.dp),
         modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(containerColor =  Color.White)
+        colors = CardDefaults.cardColors(containerColor = Color.White)
     ) {
-        Column(
-            modifier = Modifier.padding(20.dp),
-            content = content
-        )
+        Column(modifier = Modifier.padding(20.dp), content = content)
     }
 }
 
 @Composable
-fun MeaningRoundedCard(content: @Composable ColumnScope.() -> Unit){
+fun MeaningRoundedCard(content: @Composable ColumnScope.() -> Unit) {
     Card(
         shape = RoundedCornerShape(16.dp),
         elevation = CardDefaults.cardElevation(6.dp),
         modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(containerColor =  Color.White)
+        colors = CardDefaults.cardColors(containerColor = Color.White)
     ) {
-        Column(
-            modifier = Modifier.padding(20.dp),
-            content = content
-        )
+        Column(modifier = Modifier.padding(20.dp), content = content)
     }
 }

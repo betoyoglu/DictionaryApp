@@ -70,5 +70,4 @@ class DictionaryViewModel (application: Application) : AndroidViewModel(applicat
     }
 
     suspend fun checkIsFavorite(word: String): Boolean = dao.isWordFavorite(word)
-
 }
